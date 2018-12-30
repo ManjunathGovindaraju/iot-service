@@ -1,0 +1,11 @@
+---
+applications:
+- name: dilip-iot-service
+  memory: 512MB
+  instances: 1
+  random-route: true
+  buildpack: nodejs_buildpack
+  routes:
+  - route: dilip-iot-service.cfapps.io
+  services:
+  - iot-service-db

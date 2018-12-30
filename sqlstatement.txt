@@ -1,0 +1,38 @@
+create table device_info (
+  sid_key varchar(255) PRIMARY KEY,
+  description varchar(255),
+  device_ip varchar(255)
+)
+insert into device_info ( sid_key, description, device_ip) VALUES ('device123','testing','127.0.0.1')
+
+
+create table activeTemp (
+sid_key varchar(255),
+act_temp decimal(9,6),
+record_time varchar(255)
+)
+
+create table displayTemp (
+sid_key varchar(255),
+disp_temp decimal(9,6),
+record_time varchar(255)
+
+)
+create table bulbTime (
+sid_key varchar(255),
+bulp_time decimal(9,6),
+record_time varchar(255)
+
+)
+
+
+create table test_result (
+test_id varchar(255) PRIMARY KEY,
+sid_key varchar(255),
+test_name varchar(255),
+test_result varchar(255),
+test_date Date,
+FOREIGN KEY (sid_key) REFERENCES device_info(sid_key)
+)
+
+insert into test_result (test_id, sid_key, test_name, test_result, test_date) values ('test123','device123','testname','testresult', '2018-12-12')
