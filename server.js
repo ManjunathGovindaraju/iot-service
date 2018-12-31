@@ -35,12 +35,8 @@ function getDateTime() {
 
 }
 
-
-
 //app.post( '/update', upload.array(), function (req, res, next) {
 app.get( '/update', upload.array(), function (req, res, next) {
-
-  console.log("f***")
 
   var sid_key = '';
   if (req.query.sid_key === undefined){
@@ -49,25 +45,23 @@ app.get( '/update', upload.array(), function (req, res, next) {
   }
   sid_key = req.query.sid_key;
   var device_ip = '';
-  if (req.query.device_ip != undefined){
-    device_ip = req.query.device_ip;
+  if (req.query.deviceip != undefined){
+    device_ip = req.query.deviceip;
   }
   var description = '';
   if (req.query.description != undefined){
     description = req.query.description;
   }
-  console.log("111");
   var db_uri = cf_svc.get_elephantsql_uri();
   var client = new pg.Client(db_uri);
+  console.log("111");
   client.connect(function(err) {
-
     if(err) {
-      console.log("111****&&&&")
+      client.end();
       console.error('Error while connecting to database', err);
       res.status(500);
     }
     //check whether the device present
-    console.log("111****")
     var queryString = 'SELECT * from device_info WHERE sid_key=' + '\'' + sid_key + '\'';
     console.log(queryString);
     client.query(queryString, function(err, result) {
@@ -75,128 +69,95 @@ app.get( '/update', upload.array(), function (req, res, next) {
         console.error('Error while querying database', err);
         client.end();
       }
-      console.log("Result " + result.rows);
+      //device already present, so no need to add it again
       if (result.rows.length > 0) {
         console.log("Device already present");
-        //device already present, so no need to add it again
       } else {
         //device not present, so add it to device table
-        var insertClient = new pg.Client(db_uri);
-        insertClient.connect(function(err) {
-          console.log("adding device")
+
+        var queryString =
+          'INSERT INTO device_info (sid_key, description, device_ip) VALUES(' +
+          '\'' + sid_key + '\', ' +
+          '\'' + description + '\', ' +
+          '\'' + device_ip + '\')' +
+          ' returning sid_key';
+        console.log(queryString);
+        client.query(queryString, function(err, result) {
+
           if(err) {
-            console.error('could not connect to postgres', err);
+            console.error('error while adding to device_info', err);
+            res.send("Error while adding device information");
             res.status(500);
+          } else {
+
+            console.log("Added device successfully");
           }
-          var queryString =
-            'INSERT INTO device_info (sid_key, description, device_ip) VALUES(' +
-            '\'' + sid_key + '\', ' +
-            '\'' + description + '\', ' +
-            '\'' + device_ip + '\')' +
-            ' returning sid_key';
-          insertClient.query(queryString, function(err, result) {
-            if(err) {
-              console.error('error while adding to device_info', err);
-              insertClient.end();
-              res.send("Error while adding device information");
-              res.status(500);
-            }
-          });
         });
-        insertClient.end();
       }
     });
-  });
-  console.log("222")
-  //client.end();
 
-  //add active temperature values to activeTemp table
-  var act_temp = 0.0;
-  if (req.query.act_temp != undefined){
-    act_temp = req.query.act_temp;
-    var activeTempClient = new pg.Client(db_uri);
-    console.log("333")
-    activeTempClient.connect(function(err) {
-      console.log("444")
-      if(err) {
-        return console.error('could not connect to postgres', err);
-        res.status(500);
-      }
+    //add active temperature values to activeTemp table
+    if (req.query.act_temp != undefined){
+      var act_temp = req.query.act_temp;
+      var activeTempClient = new pg.Client(db_uri);
       var queryString =
         'INSERT INTO activeTemp (sid_key, act_temp, record_time) VALUES(' +
         '\'' + sid_key + '\', ' +
         act_temp + ', ' +
         '\'' + getDateTime() + '\')' +
         ' returning sid_key';
-      activeTempClient.query(queryString, function(err, result) {
+      client.query(queryString, function(err, result) {
+
         if(err) {
-          //activeTempClient.end();
-          return console.error('error while adding to activeTemp', err);
+          console.error('error while adding to activeTemp', err);
+        } else {
+          console.log("Successfully added act_temp");
         }
-        console.log("Successfully added act_temp")
       });
-    });
-    //activeTempClient.end();
-  }
-
-  //add display temperature values to displayTemp table
-  var disp_temp = 0.0;
-  if (req.query.disp_temp != undefined){
-    disp_temp = req.query.disp_temp;
-    var dispTempClient = new pg.Client(db_uri);
-    dispTempClient.connect(function(err) {
-    if(err) {
-      return console.error('could not connect to postgres', err);
-      res.status(500);
     }
-    var queryString =
-      'INSERT INTO displayTemp (sid_key, disp_temp, record_time) VALUES(' +
-      '\'' + sid_key + '\', ' +
-      disp_temp + ', ' +
-      '\'' + getDateTime() + '\')' +
-      ' returning sid_key';
-    dispTempClient.query(queryString, function(err, result) {
-      if(err) {
-        //dispTempClient.end();
-        return console.error('error while adding to activeTemp', err);
-      }
-      console.log("Successfully added disp_temp")
-    });
-    });
-    //dispTempClient.end();
-  }
 
-  //add bulp temperature values to bultTime table
-  var bulb_time = 0;
-  if (req.query.bulb_time != undefined){
-    bulb_time = req.query.bulb_time;
-    var bulbTimeClient = new pg.Client(db_uri);
-    bulbTimeClient.connect(function(err) {
-    if(err) {
-      return console.error('could not connect to postgres', err);
-      res.status(500);
+    //add display temperature values to displayTemp table
+    if (req.query.disp_temp != undefined){
+      var disp_temp = req.query.disp_temp;
+      var queryString =
+        'INSERT INTO displayTemp (sid_key, disp_temp, record_time) VALUES(' +
+        '\'' + sid_key + '\', ' +
+        disp_temp + ', ' +
+        '\'' + getDateTime() + '\')' +
+        ' returning sid_key';
+      client.query(queryString, function(err, result) {
+
+        if(err) {
+          console.error('error while adding to activeTemp', err);
+        } else {
+          console.log("Successfully added disp_temp");
+        }
+      });
     }
-    var queryString =
-      'INSERT INTO bulbTime (sid_key, bulb_time, record_time) VALUES(' +
-      '\'' + sid_key + '\', ' +
-      bulb_time + ', ' +
-      '\'' + getDateTime() + '\')' +
-      ' returning sid_key';
-      bulbTimeClient.query(queryString, function(err, result) {
-      if(err) {
-        //bulbTimeClient.end();
-        return console.error('error while adding to activeTemp', err);
-      }
-      console.log("Successfully added bulb_time")
-    });
-    });
-    //bulbTimeClient.end();
 
-  }
+    //add bulp temperature values to bultTime table
+    if (req.query.bulbtime != undefined){
+      var bulb_time = req.query.bulbtime;
+      var queryString =
+        'INSERT INTO bulbTime (sid_key, bulb_time, record_time) VALUES(' +
+        '\'' + sid_key + '\', ' +
+        bulb_time + ', ' +
+        '\'' + getDateTime() + '\')' +
+        ' returning sid_key';
+      client.query(queryString, function(err, result) {
 
+        if(err) {
+          console.error('error while adding to bulbTime', err);
+        } else {
+          console.log("Successfully added bulb_time");
+        }
+      });
+    }
+  });
   res.send("Added Successfully ");
   res.status(200);
 })
+
 
 app.get( '/device', function ( req, res) {
   var sid_key = req.query.sid_key;
@@ -210,18 +171,40 @@ app.get( '/device', function ( req, res) {
         return console.error('could not connect to postgres', err);
       }
       var queryString = 'SELECT * FROM device_info WHERE sid_key=\''+sid_key+'\'';
-
       client.query(queryString, function(err, result) {
+
         if(err) {
           return console.error('error running query', err);
         }
+        results['device_info']=result.rows;
 
-        results['results']=result.rows;
-        //var response = result.rows;
+        var queryString = 'SELECT act_temp, record_time FROM activeTemp WHERE sid_key=\''+sid_key+'\'';
+        client.query(queryString, function(err, result) {
+          if(err) {
+            return console.error('error running query', err);
+          }
+          results['active_temp']=result.rows;
 
-        res.json(results);
-        //client.end();
+          var queryString = 'SELECT disp_temp, record_time FROM displayTemp WHERE sid_key=\''+sid_key+'\'';
+          client.query(queryString, function(err, result) {
+            if(err) {
+              return console.error('error running query', err);
+            }
+            results['display_temp']=result.rows;
+
+            var queryString = 'SELECT bulb_time, record_time FROM bulbTime WHERE sid_key=\''+sid_key+'\'';
+            client.query(queryString, function(err, result) {
+              if(err) {
+                return console.error('error running query', err);
+              }
+              results['bulb_temp']=result.rows;
+              res.json(results);
+              console.log(results);
+            });
+          });
+        });
       });
+
     });
   }
 })
